@@ -1,4 +1,5 @@
 import logging
+from tradingagents.dataflows.vendors import longbridge
 
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.errors import (
@@ -97,44 +98,53 @@ OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
+        "longbridge": longbridge.get_stock,
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
     },
     # technical_indicators
     "get_indicators": {
+        "longbridge": longbridge.get_indicator,
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
     },
     # fundamental_data
     "get_fundamentals": {
+        "longbridge": longbridge.get_fundamentals,
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
+        "longbridge": longbridge.get_balance_sheet,
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "sec_edgar": get_sec_edgar_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
     },
     "get_cashflow": {
+        "longbridge": longbridge.get_cashflow,
         "alpha_vantage": get_alpha_vantage_cashflow,
         "sec_edgar": get_sec_edgar_cashflow,
         "yfinance": get_yfinance_cashflow,
     },
     "get_income_statement": {
+        "longbridge": longbridge.get_income_statement,
         "alpha_vantage": get_alpha_vantage_income_statement,
         "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
     # news_data
     "get_news": {
+        "longbridge": longbridge.get_news,
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
     },
     "get_global_news": {
+        "longbridge": longbridge.get_global_news,
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        "longbridge": longbridge.get_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
@@ -233,7 +243,10 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            if isinstance(result, str) and result.startswith("<") and " unavailable for " in result:
+                raise VendorUnavailableError("Requested date window is not covered by this vendor")
+            return result
         except VendorUnavailableError as e:
             logger.warning("Vendor %r unavailable for %s: %s; trying next vendor.", vendor, method, e)
             # Kept so an all-unavailable chain can say the vendor was the

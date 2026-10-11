@@ -22,12 +22,20 @@ def get_language_instruction() -> str:
     """
     from tradingagents.dataflows.config import get_config
     lang = get_config().get("output_language", "English")
+    evidence_rule = (
+        " Evidence rules: Use only dated, attributable facts from the supplied reports/tools."
+        " Do not treat a debate claim as verified evidence or fill missing facts from memory."
+        " Clearly label assumptions and missing sources. Data failure is NOT a Hold rating."
+        " Do not propose numeric share quantities, position weights, or maintain an existing"
+        " position unless actual portfolio holdings, capital and a verified price were provided."
+        " Researchers and risk debaters discuss evidence; they must not invent transaction proposals."
+    )
     if lang.strip().lower() == "english":
-        return ""
+        return evidence_rule
     # The labelled lines are read by the program, so they keep their English
     # label and value: a translated rating line leaves the reader prose to
     # search, where a negated rating ("not a Sell") reads as the call (#1435).
-    return (
+    return evidence_rule + (
         f" Write your entire response in {lang}, except the labelled lines the format"
         f" asks for (the \"**Rating**:\" line, \"FINAL TRANSACTION PROPOSAL:\"):"
         f" keep their label and value in English, exactly as specified."
@@ -76,6 +84,11 @@ def resolve_instrument_identity(ticker: str) -> dict:
     (``XAUUSD`` -> ``GC=F``, #983).
     """
     try:
+        from tradingagents.dataflows.router import get_vendor
+        if get_vendor("core_stock_apis", "get_stock_data").split(",")[0].strip() == "longbridge":
+            from tradingagents.dataflows.vendors.longbridge import get_company_profile as longbridge_profile
+            info = longbridge_profile(ticker)
+            return {"company_name": info["longName"], "exchange": info.get("exchange", "")}
         return _identity(ticker)
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)

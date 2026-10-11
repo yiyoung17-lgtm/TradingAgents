@@ -297,6 +297,13 @@ class TradingAgentsGraph:
         memory log's lessons are not here: the graph's Memory Log step settles
         and loads them alongside the analysts (see ``_memory_step``).
         """
+        from tradingagents.dataflows.quality import DataQualityError, preflight
+        with run_config(self.config):
+            try:
+                preflight(company_name, trade_date, self.selected_analysts)
+            except DataQualityError as exc:
+                exc.ticker, exc.trade_date = company_name, trade_date
+                raise
         return self.propagator.create_initial_state(
             company_name,
             trade_date,

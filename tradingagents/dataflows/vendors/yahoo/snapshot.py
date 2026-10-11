@@ -27,7 +27,7 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
 )
 
 
-def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
+def _verified_rows(symbol: str, as_of_date: str, data=None) -> pd.DataFrame:
     """OHLCV on or before as_of_date, date-sorted. Raises NoMarketDataError if nothing usable.
 
     ``load_ohlcv`` already normalizes the Date column and filters out
@@ -36,7 +36,8 @@ def _verified_rows(symbol: str, as_of_date: str) -> pd.DataFrame:
     """
     # As reported: this snapshot is quoted by the agents as exact prices, so a
     # gap-filled cell would put the previous session's number under this date.
-    data = load_ohlcv(symbol, as_of_date, fill_gaps=False)
+    if data is None:
+        data = load_ohlcv(symbol, as_of_date, fill_gaps=False)
     if data is None or data.empty:
         raise NoMarketDataError(symbol, normalize_symbol(symbol), "no price rows")
 
@@ -68,12 +69,13 @@ def build_verified_market_snapshot(
     as_of_date: str,
     look_back_days: int = 30,
     indicators: Iterable[str] | None = None,
+    *, data=None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
     # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
     # Volume); stockstats `wrap()` lowercases columns and adds indicator
     # columns, so read raw prices from `df` and indicators from `stock_df`.
-    df = _verified_rows(symbol, as_of_date)
+    df = _verified_rows(symbol, as_of_date, data)
     stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)

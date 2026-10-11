@@ -87,6 +87,10 @@ def get_verified_market_snapshot(
     """
     # An exception out of a tool would end the run.
     try:
+        from tradingagents.dataflows.router import get_vendor
+        if get_vendor("core_stock_apis", "get_stock_data").split(",")[0].strip() == "longbridge":
+            from tradingagents.dataflows.vendors.longbridge import snapshot
+            return snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
         return build_verified_market_snapshot(symbol, as_of(curr_date, trade_date), look_back_days)
     except VendorUnavailableError as exc:
         return vendor_unavailable("get_verified_market_snapshot", exc)

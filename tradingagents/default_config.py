@@ -80,7 +80,7 @@ def build_default_config() -> dict:
     Read when the package is imported, as DEFAULT_CONFIG; call it again to see
     the environment as it is now.
     """
-    return _apply_env_overrides({
+    config = _apply_env_overrides({
         "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR") or os.path.join(_TRADINGAGENTS_HOME, "logs"),
         "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR") or os.path.join(_TRADINGAGENTS_HOME, "cache"),
         "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH") or os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md"),
@@ -204,6 +204,11 @@ def build_default_config() -> dict:
         },
 
     })
+    for category in config["data_vendors"]:
+        value = os.getenv("TRADINGAGENTS_VENDOR_" + category.upper())
+        if value:
+            config["data_vendors"][category] = value
+    return config
 
 
 DEFAULT_CONFIG = build_default_config()

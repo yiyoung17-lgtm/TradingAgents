@@ -2,6 +2,8 @@ import sys
 
 import typer
 
+from tradingagents.dataflows.quality import DataQualityError, write_failure
+
 from cli.display import console
 from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
@@ -87,6 +89,11 @@ def analyze(
     try:
         flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show, "html": html}
         run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
+    except DataQualityError as exc:
+        path = write_failure(getattr(exc, "ticker", ticker or "interactive"),
+                             getattr(exc, "trade_date", date or "未指定"), str(exc))
+        typer.echo(f"分析未完成（无法判断，不是 Hold）：{exc}\n失败记录：{path}", err=True)
+        raise typer.Exit(code=2) from None
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit

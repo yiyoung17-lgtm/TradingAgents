@@ -34,10 +34,13 @@ REPORT_AGENTS = [
 
 @pytest.mark.unit
 class TestLanguageInstruction:
-    def test_english_adds_no_tokens(self, monkeypatch):
+    def test_english_keeps_evidence_rules_without_translation(self, monkeypatch):
         from tradingagents.dataflows.config import set_config
         set_config({"output_language": "English"})
-        assert get_language_instruction() == ""
+        instruction = get_language_instruction()
+        assert "dated, attributable facts" in instruction
+        assert "Do not propose numeric share quantities" in instruction
+        assert "Write your entire response" not in instruction
 
     def test_non_english_emits_directive(self):
         from tradingagents.dataflows.config import set_config

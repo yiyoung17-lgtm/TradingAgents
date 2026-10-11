@@ -82,7 +82,27 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
                        spec.agent_node, max_tool_rounds, repeated)
         return agent({**state, "messages": [*state["messages"], HumanMessage(WRAP_UP)]})
 
-    graph.add_node("tools", ToolNode(list(spec.tools)))
+    tools_node = ToolNode(list(spec.tools))
+
+    def checked_tools(state, config):
+        from tradingagents.dataflows.quality import DataQualityError, unavailable
+        result = tools_node.invoke(state, config)
+        required = {
+            "get_stock_data", "get_verified_market_snapshot", "get_indicators",
+            "get_news", "get_global_news", "get_income_statement",
+            "get_balance_sheet", "get_cashflow", "get_fundamentals",
+        }
+        for message in result.get("messages", []):
+            if message.name in required and (
+                unavailable(message.content) or getattr(message, "status", None) == "error"
+            ):
+                exc = DataQualityError(f"{message.name}: 必需数据在分析中失效，已停止后续推断。")
+                exc.ticker = state.get("company_of_interest", "unknown")
+                exc.trade_date = state.get("trade_date", "unknown")
+                raise exc
+        return result
+
+    graph.add_node("tools", checked_tools)
     graph.add_node("wrap_up", wrap_up)
     graph.add_conditional_edges("agent", _tools_or_done, ["tools", END])
     graph.add_conditional_edges("tools", more_or_wrap_up, ["agent", "wrap_up"])
